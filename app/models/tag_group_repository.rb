@@ -1,66 +1,65 @@
 class TagGroupRepository
-  delegate :root_groups, :tree, to: :@client
+  delegate :get, :root_tag_group_names, :save, :save_root_tag_groups, to: :@datasource
 
   def initialize(datasource: :local)
     case datasource
-    when :local then  @client = LocalClient.new
-    when :remote then @client = RemoteClient.new
+    when :local  then @datasource = Local.new
+    when :remote then @datasource = Remote.new
     else 'unknown datasource given'
     end
   end
 
-  def get(tag_group_name)
-    TagGroup.new @client.get(tag_group_name)
+  def all
+    root_tag_group_names.map do |tag_group_name|
+      get(tag_group_name)
+    end
   end
 
   private
 
-  class LocalClient
-    def root_groups
-      JSON.load Rails.root.join('db', 'tag_groups', 'root.json')
+  class Local
+    def root_tag_group_names
+      JSON.load_file Rails.root.join('db', 'tag_groups', 'root_tag_group_names.json')
     end
 
     def get(tag_group_name)
-      JSON.load Rails.root.join('db', 'tag_groups', 'nodes', "#{tag_group_name}.json")
+      json = JSON.load_file(Rails.root.join('db', 'tag_groups', 'nodes', "#{tag_group_name}.json"), symbolize_names: true)
+      TagGroup.new(
+        name: json[:name],
+        tags: json[:tags].map { |tag| Tag.new(tag) },
+      )
     end
 
-    def tree
-      root_groups.each_with_object({}) do |tag_group_name, hash|
-        hash.merge! get(tag_group_name)
+    def save(tag_groups)
+      tag_groups.each do |tag_group|
+        db = Rails.root.join('db', 'tag_groups', 'nodes', "#{tag_group.name}.json")
+        File.write(db, tag_group.to_json)
       end
+      nil
+    end
+
+    def save_root_tag_groups(tag_group_names)
+      db = Rails.root.join('db', 'tag_groups', 'root_tag_group_names.json')
+      File.write(db, tag_group_names.to_json)
+      nil
     end
   end
 
-  class RemoteClient
-    DANBOORU_WIKI_URL = 'https://danbooru.donmai.us/wiki_pages'
+  class Remote
+    def initialize
+      @client = Danbooru::Client.new
+    end
 
-    def root_groups
-      text = connection.get("#{DANBOORU_WIKI_URL}/tag_groups.json").body[:body]
-      text.scan(/\[\[(Tag group:.+?)\]\]/).flatten.map do |tag|
-        tag.gsub(' ', '_').downcase
-      end
+    def root_tag_group_names
+      @client.root_tag_group_names
     end
 
     def get(tag_group_name)
-      text = connection.get("#{DANBOORU_WIKI_URL}/#{tag_group_name}.json").body[:body]
-      tags = text.scan(/\[\[(?!tag group:)(?!tag groups)(.+?)\]\]/).flatten.map do |tag|
-        tag.gsub(' ', '_').downcase
-      end.uniq
-      { name: tag_group_name, tags: tags }
-    end
-
-    def tree
-      raise NotImplementError 'Use local datasource to call tree method'
-    end
-
-    private
-
-    def connection
-      Faraday::Connection.new do |builder|
-        builder.request  :url_encoded
-        builder.response :json, parser_options: { symbolize_names: true }, content_type: 'application/json'
-        builder.response :raise_error
-      end
+      response = @client.tag_group(tag_group_name)
+      TagGroup.new(
+        name: response[:name],
+        tags: response[:tags].map { |tag| Tag.new(name: tag) },
+      )
     end
   end
 end

@@ -14,8 +14,4 @@ rake tag_groups:update:nodes
 
 # TODO
 
-- tag, tag_group で出力＆ファイル保存できるようにする
-- 重複してるキーの一覧
-- dup_keys = b.group_by(&:itself).select { _2.size > 1 }.keys
-- どのキーが何個重複してるか、重複が多い順にならべる
 - タグの利用件数も取りたい
