@@ -30,10 +30,10 @@ class Danbooru::Client
   end
 
   concerning :Tag do
-    DANBOORU_TAGS_URL = 'https://danbooru.donmai.us/tags.json?search[order]=count&limit=10&page=%{page}'
+    DANBOORU_TAGS_URL = 'https://danbooru.donmai.us/tags.json?search[order]=count&limit=1000&page=%{page}'
 
     def top_tags
-      tags = (1..2).flat_map do |page|
+      tags = (1..10).flat_map do |page|
         connection.get(DANBOORU_TAGS_URL % { page: page }).body
       end
     end
