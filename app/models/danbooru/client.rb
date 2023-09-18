@@ -1,14 +1,4 @@
 class Danbooru::Client
-  private
-
-  def connection
-    Faraday::Connection.new do |builder|
-      builder.request  :url_encoded
-      builder.response :json, parser_options: { symbolize_names: true }, content_type: 'application/json'
-      builder.response :raise_error
-    end
-  end
-
   concerning :TagGroup do
     DANBOORU_WIKI_URL = 'https://danbooru.donmai.us/wiki_pages'
 
@@ -36,6 +26,16 @@ class Danbooru::Client
       tags = (1..10).flat_map do |page|
         connection.get(DANBOORU_TAGS_URL % { page: page }).body
       end
+    end
+  end
+
+  private
+
+  def connection
+    Faraday::Connection.new do |builder|
+      builder.request  :url_encoded
+      builder.response :json, parser_options: { symbolize_names: true }, content_type: 'application/json'
+      builder.response :raise_error
     end
   end
 end
